@@ -6,9 +6,8 @@ const app = express();
 
 const db = new sqlite3.Database('game.db');
 
-const MessageHandlers = require('./server/websocket/messageHandlers');
-const ConnectionManager = require('./server/websocket/connectionManager');
-const PhysicsManager = require('./static/physicsManager.js');
+//const MessageHandlers = require('./server/websocket/messageHandlers');
+
 
 // Middleware
 app.use(express.static('static'));
@@ -36,21 +35,10 @@ const wss = new WebSocket.Server({
     clientTracking: true 
 });
 
-const players = new Map();
-const messageHandlers = new MessageHandlers(wss, players);
-const connectionManager = new ConnectionManager(wss);
 
-var p = new PhysicsManager(); 
-p.createPhysicsWorld().then(world => {
-  console.log('Physics world created successfully');
-  // Continue with your code
-}).catch(err => {
-  console.error('Physics initialization failed:', err);
-});
 
 wss.on('connection', (ws) => {
     console.log('New client connected');
-    connectionManager.initializeClient(ws);
     
     ws.on('pong', () => {
         ws.isAlive = true;
@@ -59,30 +47,14 @@ wss.on('connection', (ws) => {
     
     ws.on('message', (message) => {
         try {
-            const data = JSON.parse(message);
             
-            switch(data.type) {
-                case 'join':
-                    messageHandlers.handleJoin(ws);
-                    break;
-                case 'position':
-                    messageHandlers.handlePosition(ws, data);
-                    break;
-                case 'heartbeat':
-                    messageHandlers.handleHeartbeat(ws);
-                    break;
-                default:
-                    console.warn('Unknown message type:', data.type);
-            }
         } catch (e) {
             console.error('Error handling message:', e);
         }
     });
     
-    ws.on('close', () => messageHandlers.handleDisconnect(ws));
+    ws.on('close', () => {});
 });
-
-connectionManager.startHeartbeatChecks();
 
 // Initialize database tables
 db.serialize(() => {

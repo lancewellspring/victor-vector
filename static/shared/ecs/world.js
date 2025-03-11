@@ -1,21 +1,7 @@
 /**
  * World module that wraps Miniplex functionality for the ECS architecture
  */
-// Check if Miniplex is available in the global scope
-let MiniplexWorld;
-
-try{
-  if(typeof window !== 'undefined') window.Miniplex = exports;
-  if (typeof window !== 'undefined') {
-    MiniplexWorld = window.Miniplex.World;
-  } else {
-
-    MiniplexWorld = require('miniplex').World;
-    console.log("found world:", MiniplexWorld);
-  }
-} catch (e) {
-  console.log("Unable to load Miniplex World.")
-}
+import { World as MiniplexWorld } from 'miniplex';
 
 /**
  * Create a new ECS World with additional helper methods
@@ -74,10 +60,4 @@ function createWorld() {
   return world;
 }
 
-// Export for both Node.js and browser environments
-if (typeof window !== 'undefined') {
-  window.ECS = window.ECS || {};
-  window.ECS.createWorld = createWorld;
-} else {
-  module.exports = { createWorld };
-}
+export { createWorld };

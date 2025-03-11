@@ -1,12 +1,11 @@
+import { System } from '@shared/ecs/system';
 /**
  * Network System for client-side networking
  * Handles communication with the server
  */
 
-// Import System base class
-const { System } = typeof window !== 'undefined' ? window.ECS : require('../../shared/ecs');
 
-class NetworkSystem extends System {
+export class NetworkSystem extends System {
   constructor() {
     super();
     this.socket = null;
@@ -23,11 +22,15 @@ class NetworkSystem extends System {
    * @param {string} serverUrl - WebSocket server URL
    */
   connect(serverUrl) {
-    this.serverUrl = serverUrl || `ws://${window.location.host}`;
-    
+    // Automatically detect if we need secure WebSockets based on the page protocol
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.host;
+
+    this.serverUrl = serverUrl || `${protocol}//${host}/ws`;
+
     console.log(`Connecting to server at ${this.serverUrl}`);
     this.socket = new WebSocket(this.serverUrl);
-    
+
     this.socket.onopen = this.handleConnect.bind(this);
     this.socket.onclose = this.handleDisconnect.bind(this);
     this.socket.onerror = this.handleError.bind(this);
@@ -139,27 +142,23 @@ class NetworkSystem extends System {
    * @param {number} deltaTime - Time in seconds since last update
    */
   update(deltaTime) {
-    // Process network entities
-    const networkEntities = this.world.archetype('network').entities;
+    // Replace the archetype call with a proper Miniplex query
+    // Using Miniplex's query API instead of 'archetype'
+    
+    // Option 1: If you're using Miniplex's "with" function:
+    const networkEntities = this.world.with('network');
+    
+    // Option 2: If you need to filter entities with a specific component
+    // const networkEntities = this.world.entities.filter(entity => 'network' in entity);
     
     for (const entity of networkEntities) {
       if (entity.network.isOwned) {
         // Handle owned entity (local player)
-        // We'll implement input sending here later
+        // Your code here...
       } else {
         // Handle remote entity interpolation
-        // We'll implement this later
+        // Your code here...
       }
     }
   }
-}
-
-// Register the system
-if (typeof window !== 'undefined') {
-  window.ECS.registerSystem('network', NetworkSystem);
-}
-
-// Export for potential Node.js imports (won't typically be used server-side)
-if (typeof module !== 'undefined') {
-  module.exports = { NetworkSystem };
 }

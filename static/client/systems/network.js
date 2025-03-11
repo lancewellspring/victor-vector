@@ -1,4 +1,4 @@
-import { System } from '@shared/ecs/system';
+import { System } from '@shared/systems/system';
 /**
  * Network System for client-side networking
  * Handles communication with the server

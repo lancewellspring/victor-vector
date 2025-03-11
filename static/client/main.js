@@ -1,15 +1,14 @@
-/**
- * Client entry point for Venture & Valor
- * Initializes the game world and systems
- */
+// static/client/main.js
 
-// Import ECS framework
-const { 
-  createWorld, 
-  System, 
-  Components, 
-  createComponent 
-} = window.ECS;
+// Import ECS framework - direct imports instead of accessing window
+import { createWorld } from '@shared/ecs/world';
+import { System } from '@shared/ecs/system';
+import { Components, createComponent } from '@shared/components/index';
+
+// Import your systems
+import {NetworkSystem} from '../client/systems/network'; // This will register the system
+import {RenderSystem} from '../client/systems/render';
+import {InputSystem} from '../client/systems/input';
 
 // Create the game world
 const world = createWorld();
@@ -34,18 +33,19 @@ function gameLoop(timestamp) {
   requestAnimationFrame(gameLoop);
 }
 
-// Initialize network system after creating the world
+// Initialize the game
 function initGame() {
   console.log('Initializing Venture & Valor...');
   
-  // Initialize network system
-  const networkSystem = window.ECS.createSystem('network');
-  world.registerSystem(networkSystem, 0);
+  // Create and register systems
+  const networkSystem = world.registerSystem(new NetworkSystem(), 0);
+  const renderSystem = world.registerSystem(new RenderSystem(), 10);
+  const inputSystem = world.registerSystem(new InputSystem(), 5);
   
-  // Connect to server
+  // Initialize systems
   networkSystem.connect();
-  
-  // Rest of initialization
+  renderSystem.init();
+  inputSystem.init();
   
   // Start the game loop
   running = true;

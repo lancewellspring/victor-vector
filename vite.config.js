@@ -1,20 +1,17 @@
 import { defineConfig } from 'vite';
-import { resolve } from 'path';
+import path from 'path';
 
 export default defineConfig({
   root: 'static/client',
   server: {
+    hmr: false,
+    allowedHosts: ['torch-zigzag-zinnia.glitch.me'],
     hmr: {
-      // This is critical for Glitch to work with Vite
-      clientPort: 443,
-      port: 3000
+      clientPort: 443
     },
-    // More permissive host setting for Glitch's environment
     host: '0.0.0.0',
     port: 3000,
     strictPort: true,
-    // Allow all Glitch domains
-    cors: true,
     proxy: {
       '/api': 'http://localhost:3000',
       '/ws': {
@@ -25,16 +22,25 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@shared': resolve(__dirname, 'static/shared'),
+      '@shared': path.resolve(__dirname, 'static/shared'),
     }
   },  
   build: {
-    outDir: resolve(__dirname, 'dist'),
+    outDir: path.resolve(__dirname, 'dist'),
     emptyOutDir: true,
+    // Smaller chunks
+    chunkSizeWarningLimit: 500,
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'static/client/index.html')
+        main: path.resolve(__dirname, 'static/client/index.html')
       }
+    },
+    // Reduce sourcemap size
+    sourcemap: false,
+    
+    // Optimize dependencies
+    commonjsOptions: {
+      include: [/node_modules/],
     }
   }
 });

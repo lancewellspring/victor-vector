@@ -1,7 +1,7 @@
 /**
  * Base System class for the ECS architecture
  */
-class System {
+export class System {
   constructor() {
     this.priority = 0;
     this.world = null;
@@ -32,12 +32,4 @@ class System {
     this.enabled = false;
     return this;
   }
-}
-
-// Export for both Node.js and browser environments
-if (typeof module !== 'undefined') {
-  module.exports = { System };
-} else {
-  window.ECS = window.ECS || {};
-  window.ECS.System = System;
 }

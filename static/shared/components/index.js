@@ -31,16 +31,9 @@ function createComponent(name, data = {}) {
   return { ...defaults, ...data };
 }
 
-// Export for both Node.js and browser environments
-if (typeof module !== 'undefined') {
-  module.exports = {
-    Components,
-    registerComponent,
-    createComponent
-  };
-} else {
-  window.ECS = window.ECS || {};
-  window.ECS.Components = Components;
-  window.ECS.registerComponent = registerComponent;
-  window.ECS.createComponent = createComponent;
-}
+
+export {
+  Components,
+  registerComponent,
+  createComponent
+};

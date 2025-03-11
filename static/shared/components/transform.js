@@ -4,9 +4,7 @@
  */
 
 // Get access to the component registry
-const registry = typeof require !== 'undefined' 
-  ? require('./index')
-  : window.ECS;
+import registerComponent from './index';
 
 /**
  * Create a default Transform component
@@ -35,14 +33,6 @@ function createTransform() {
 }
 
 // Register the component
-registry.registerComponent('transform', createTransform);
+registerComponent.registerComponent('transform', createTransform);
 
-// Export for both Node.js and browser environments
-if (typeof module !== 'undefined') {
-  module.exports = {
-    createTransform
-  };
-} else {
-  window.ECS = window.ECS || {};
-  window.ECS.createTransform = createTransform;
-}
+export { createTransform };

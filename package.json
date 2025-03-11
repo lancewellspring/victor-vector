@@ -4,17 +4,26 @@
   "description": "A Node app with SQLite database, instantly up and running.",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "vite --host",
+    "server": "NODE_ENV=development node server.js",
+    "build": "vite build",
+    "prod": "NODE_ENV=production node server.js"
   },
   "dependencies": {
+    "express": "^4.21.2",
+    "miniplex": "^2.0.0",
+    "simplex-noise": "^4.0.3",
     "sqlite": "^5.0.1",
     "sqlite3": "^5.1.6",
-    "express": "^4.21.2",
-    "ws": "^8.18.0",
-    "simplex-noise": "^4.0.3"
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "miniplex": "^2.0.0",
+    "vite": "^4.5.9"
   },
   "engines": {
-    "node": "18.x"
+    "node": "16.x"
   },
   "repository": {
     "url": "https://glitch.com/edit/#!/hello-sqlite"

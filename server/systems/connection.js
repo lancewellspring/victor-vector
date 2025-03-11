@@ -4,8 +4,8 @@
  */
 
 // Import System base class
-const { System } = require('../../static/shared/ecs');
-const { createComponent } = require('../../static/shared/components');
+import { System } from '../../static/shared/ecs';
+import  { createComponent } from '../../static/shared/components';
 
 class ConnectionSystem extends System {
   constructor(wss) {
@@ -205,4 +205,4 @@ class ConnectionSystem extends System {
   }
 }
 
-module.exports = { ConnectionSystem };
+export { ConnectionSystem };

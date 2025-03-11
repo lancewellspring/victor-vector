@@ -4,7 +4,7 @@
  */
 
 // Get access to the component registry
-const { registerComponent } = require('../../static/shared/components');
+import { registerComponent } from '../../static/shared/components';
 
 /**
  * Create a default Connection component
@@ -35,6 +35,6 @@ function createConnection() {
 // Register the component
 registerComponent('connection', createConnection);
 
-module.exports = {
+export {
   createConnection
 };

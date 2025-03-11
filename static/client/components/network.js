@@ -4,7 +4,7 @@
  */
 
 // Get access to the component registry
-const registry = typeof window !== 'undefined' ? window.ECS : require('../../shared/components');
+import {registerComponent} from '@shared/components';
 
 /**
  * Create a default Network component
@@ -32,10 +32,6 @@ function createNetwork() {
   };
 }
 
-// Register the component
-if (typeof window !== 'undefined') {
-  window.ECS.registerComponent('network', createNetwork);
-  window.ECS.createNetwork = createNetwork;
-}
+export {createNetwork};
 
 // No need to export for Node.js - client-only component

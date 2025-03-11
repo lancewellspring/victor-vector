@@ -4,9 +4,7 @@
  */
 
 // Get access to the component registry
-const registry = typeof require !== 'undefined' 
-  ? require('./index')
-  : window.ECS;
+import {registerComponent} from './index'
 
 /**
  * Create a default Physics component
@@ -55,14 +53,8 @@ function createPhysics() {
 }
 
 // Register the component
-registry.registerComponent('physics', createPhysics);
+registerComponent.registerComponent('physics', createPhysics);
 
-// Export for both Node.js and browser environments
-if (typeof module !== 'undefined') {
-  module.exports = {
-    createPhysics
-  };
-} else {
-  window.ECS = window.ECS || {};
-  window.ECS.createPhysics = createPhysics;
-}
+export {
+  createPhysics
+};

@@ -1,23 +1,23 @@
-const shared = typeof window !== 'undefined' 
-  ? window
-  : {};
+// const shared = typeof window !== 'undefined' 
+//   ? window
+//   : {};
 
-// ECS module index
-shared.createWorld = typeof require !== 'undefined' 
-  ? require('./world').createWorld
-  : window.ECS;
+// // ECS module index
+// shared.createWorld = typeof require !== 'undefined' 
+//   ? require('./world').createWorld
+//   : window.ECS;
   
-shared.System = typeof require !== 'undefined' 
-  ? require('./system').System
-  : window.ECS;
+// shared.System = typeof require !== 'undefined' 
+//   ? require('./system').System
+//   : window.ECS;
 
-// Export for both Node.js and browser environments
-if (typeof module !== 'undefined') {
-  module.exports = {
-    createWorld: shared.createWorld,
-    System: shared.System
-  };
-} else {
+// // Export for both Node.js and browser environments
+// if (typeof module !== 'undefined') {
+//   module.exports = {
+//     createWorld: shared.createWorld,
+//     System: shared.System
+//   };
+// } else {
   // Create global ECS namespace if it doesn't exist
 //   window.ECS = window.ECS || {};
 
@@ -32,5 +32,5 @@ if (typeof module !== 'undefined') {
 //   if (!window.ECS.System) {
 //     window.ECS.System = shared.System;
 //   }
-}
+// }
 

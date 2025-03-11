@@ -1,3 +1,5 @@
+import { System } from '@shared/ecs/system';
+
 /**
  * Systems Registry
  * Manages system types and provides utilities for system registration
@@ -35,16 +37,8 @@ function createSystem(name, config = {}) {
   return system;
 }
 
-// Export for both Node.js and browser environments
-if (typeof module !== 'undefined') {
-  module.exports = {
-    Systems,
-    registerSystem,
-    createSystem
-  };
-} else {
-  window.ECS = window.ECS || {};
-  window.ECS.Systems = Systems;
-  window.ECS.registerSystem = registerSystem;
-  window.ECS.createSystem = createSystem;
-}
+export {
+  Systems,
+  registerSystem,
+  createSystem
+};

@@ -1,39 +1,13 @@
-/**
- * Component Registry
- * Manages component types and provides utilities for component creation
- */
+import { registerComponent, createComponent, getRegisteredComponents } from './registry.js';
 
-// Component registry object
-const Components = {};
-
-/**
- * Register a component type with an initialization function
- * @param {string} name - Component name
- * @param {Function} initFn - Function that creates component data
- */
-function registerComponent(name, initFn) {
-  Components[name] = initFn;
-}
-
-/**
- * Create a component instance
- * @param {string} name - Component name
- * @param {Object} data - Initial data to merge with defaults
- * @returns {Object} Component data
- */
-function createComponent(name, data = {}) {
-  if (!Components[name]) {
-    throw new Error(`Component type "${name}" not registered`);
-  }
-  
-  // Create default component data and merge with provided data
-  const defaults = Components[name]();
-  return { ...defaults, ...data };
-}
-
+// Import all component definitions to ensure they're registered
+import './transform.js';
+import './physics.js';
+import './render.js';
+// Add more imports as you create them
 
 export {
-  Components,
   registerComponent,
-  createComponent
+  createComponent,
+  getRegisteredComponents
 };

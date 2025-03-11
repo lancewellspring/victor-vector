@@ -1,38 +1,40 @@
-/**
- * Transform Component
- * Represents position, rotation, and scale of an entity
- */
-
-// Get access to the component registry
-import registerComponent from './index';
+import { registerComponent } from './registry.js';
 
 /**
- * Create a default Transform component
- * @returns {Object} Default transform data
+ * Transform Component - Handles position, rotation, and scale of entities
+ * @returns {Object} Default transform component data
  */
 function createTransform() {
   return {
-    // Position vector
+    // Position
     x: 0,
     y: 0,
     z: 0,
     
     // Rotation (in radians)
-    rotation: 0,
+    rotationX: 0,
+    rotationY: 0,
+    rotationZ: 0,
     
     // Scale (1 is default size)
     scaleX: 1,
     scaleY: 1,
+    scaleZ: 1,
     
-    // Optional parent entity ID for hierarchical transformations
+    // Parent entity ID for hierarchical transformations (null means root)
     parent: null,
     
-    // Flag to determine if coordinates are in local or world space
-    local: true
+    // Whether physics should update this transform
+    physicsControlled: false,
+    
+    // For interpolation between physics steps
+    previousX: 0,
+    previousY: 0,
+    previousZ: 0
   };
 }
 
 // Register the component
-registerComponent.registerComponent('transform', createTransform);
+registerComponent('transform', createTransform);
 
 export { createTransform };

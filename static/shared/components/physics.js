@@ -1,60 +1,49 @@
-/**
- * Physics Component
- * Represents physics properties for an entity
- */
-
-// Get access to the component registry
-import {registerComponent} from './index'
+import { registerComponent } from './registry.js';
 
 /**
- * Create a default Physics component
- * @returns {Object} Default physics data
+ * Physics Component - Handles physical properties and collision
+ * @returns {Object} Default physics component data
  */
 function createPhysics() {
   return {
-    // Velocity vector
-    velocityX: 0,
-    velocityY: 0,
+    // Physics body type
+    bodyType: 'dynamic', // dynamic, static, kinematic
     
-    // Acceleration vector
-    accelerationX: 0,
-    accelerationY: 0,
-    
-    // Mass affects physics calculations
-    mass: 1,
-    
-    // Collision properties
-    collider: {
-      type: 'box', // box, circle, etc.
-      width: 1,
-      height: 1,
-      radius: 0.5, // For circle colliders
-      offset: { x: 0, y: 0 } // Offset from transform position
-    },
+    // Collider properties
+    colliderType: 'box', // box, circle, convex, etc.
+    width: 1,
+    height: 1,
+    depth: 1,
+    radius: 0.5,
     
     // Physics material properties
     friction: 0.2,
     restitution: 0.2, // Bounciness
     
-    // Physics body type
-    bodyType: 'dynamic', // dynamic, static, kinematic
+    // Physics state
+    velocity: { x: 0, y: 0, z: 0 },
+    angularVelocity: { x: 0, y: 0, z: 0 },
     
-    // Collision flags
-    isSensor: false,
-    collisionLayer: 1,  // What layer this entity is on
-    collisionMask: 1,   // What layers this entity collides with
+    // Gravity multiplier (1.0 = normal gravity)
+    gravityScale: 1.0,
     
-    // Reference for physics engine
-    body: null, // Will store reference to Rapier body
+    // Collision groups and masks
+    collisionGroup: 1,
+    collisionMask: 0xFFFF, // Collide with everything by default
     
-    // For client-server reconciliation
+    // Rapier.js references (will be set by PhysicsSystem)
+    rigidbody: null,
+    collider: null,
+    
+    // For character controller
+    isCharacter: false,
+    grounded: false,
+    
+    // For network synchronization
     lastProcessedInput: 0
   };
 }
 
-// Register the component
-registerComponent.registerComponent('physics', createPhysics);
+registerComponent('physics', createPhysics);
 
-export {
-  createPhysics
-};
+export { createPhysics };

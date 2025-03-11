@@ -4,7 +4,7 @@
  */
 
 // Import System base class
-import { System } from '../../static/shared/ecs';
+import { System } from '../../static/shared/systems';
 import  { createComponent } from '../../static/shared/components';
 
 class ConnectionSystem extends System {

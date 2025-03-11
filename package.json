@@ -16,7 +16,9 @@
     "simplex-noise": "^4.0.3",
     "sqlite": "^5.0.1",
     "sqlite3": "^5.1.6",
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "three": "^0.174.0",
+    "@dimforge/rapier2d-compat": "^0.15.0"
   },
   "devDependencies": {
     "miniplex": "^2.0.0",

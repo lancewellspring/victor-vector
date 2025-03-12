@@ -17,6 +17,7 @@ export class NetworkSystem extends System {
     this.messageHandlers = {};
   }
   
+  
   /**
    * Initialize the network connection
    * @param {string} serverUrl - WebSocket server URL

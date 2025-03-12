@@ -1,9 +1,12 @@
 import { registerComponent, createComponent, getRegisteredComponents } from './registry.js';
 
 // Import all component definitions to ensure they're registered
-import './transform.js';
+import './background.js';
 import './physics.js';
+import './player.js';
 import './render.js';
+import './terrain.js';
+import './transform.js';
 // Add more imports as you create them
 
 export {

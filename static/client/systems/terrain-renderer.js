@@ -29,8 +29,8 @@ export class TerrainRendererSystem extends System {
   
   initExistingEntities() {
     // Find all entities with terrain components that have points
-    const terrainEntities = this.world.with('terrain').filter(
-      entity => entity.terrain.points && entity.terrain.points.length > 0
+    const terrainEntities = this.world.with('terrain').where(
+      ({entity}) => entity.terrain.points && entity.terrain.points.length > 0
     );
     
     for (const entity of terrainEntities) {
@@ -139,8 +139,8 @@ export class TerrainRendererSystem extends System {
     if (!this.initialized) return;
     
     // Check for terrain entities that have points but no mesh
-    const terrainEntities = this.world.with('terrain').filter(
-      entity => entity.terrain.points && 
+    const terrainEntities = this.world.with('terrain').where(
+      ({entity}) => entity.terrain.points && 
                entity.terrain.points.length > 0 && 
                !entity.terrain.hasVisualMesh
     );

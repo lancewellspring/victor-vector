@@ -1,6 +1,7 @@
 // static/client/systems/render.js
 import { System } from '@shared/systems/system.js';
 import { BackgroundSystem } from './background.js';
+import * as THREE from 'three';
 
 export class RenderSystem extends System {
   constructor() {
@@ -33,7 +34,7 @@ export class RenderSystem extends System {
     
     // Create renderer
     this.renderer = new THREE.WebGLRenderer({ 
-      canvas: document.getElementById('game-canvas'),
+      canvas: document.getElementById('game-container'),
       antialias: true 
     });
     this.renderer.setSize(window.innerWidth, window.innerHeight);

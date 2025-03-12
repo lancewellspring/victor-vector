@@ -1,5 +1,6 @@
 import { System } from '../../shared/systems/system.js';
 import { NoiseUtility } from '../../shared/utils/noise-utility.js';
+import * as THREE from 'three';
 
 export class BackgroundSystem extends System {
   constructor() {

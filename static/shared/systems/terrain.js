@@ -1,4 +1,4 @@
-// static/shared/systems/terrain-system.js
+// static/shared/systems/terrain.js - Fixed version
 import { System } from './system.js';
 
 export class TerrainSystem extends System {
@@ -67,22 +67,24 @@ export class TerrainSystem extends System {
     const terrainEntities = this.world.with('terrain');
     
     for (const entity of terrainEntities) {
-      this.generateTerrainPoints(entity);
-      
-      // Create physics bodies for terrain with collision
-      if (entity.terrain.hasCollision) {
-        this.createTerrainPhysics(entity);
+      if (entity && entity.terrain) { // Add this check to ensure terrain exists
+        this.generateTerrainPoints(entity);
+        
+        // Create physics bodies for terrain with collision
+        if (entity.terrain.hasCollision) {
+          this.createTerrainPhysics(entity);
+        }
       }
     }
   }
   
   generateTerrainPoints(entity) {
-    if (!entity.terrain) return;
+    if (!entity || !entity.terrain) return null; // Add this check
     
     const terrain = entity.terrain;
     
     // Only generate points if they haven't been generated already
-    if (terrain.points && terrain.points.length > 0) return;
+    if (terrain.points && terrain.points.length > 0) return terrain.points;
     
     const points = this.createTerrainPoints(terrain);
     terrain.points = points;
@@ -91,6 +93,8 @@ export class TerrainSystem extends System {
   }
   
   createTerrainPoints(terrain) {
+    if (!terrain) return []; // Add this check
+    
     const { seed, width, segments, octaves, persistence, scale, baseHeight, amplitude, maxSlope, smoothing } = terrain;
     
     const points = [];
@@ -136,14 +140,14 @@ export class TerrainSystem extends System {
   }
   
   createTerrainPhysics(entity) {
-    if (!this.initialized || !entity.terrain || !entity.terrain.points) return;
+    if (!this.initialized || !entity || !entity.terrain || !entity.terrain.points) return null; // Add this check
     
     const terrain = entity.terrain;
     const points = terrain.points;
     
     // Find physics system
     const physicsSystem = this.world.systems.find(sys => sys.name === 'PhysicsSystem');
-    if (!physicsSystem) return;
+    if (!physicsSystem) return null;
     
     // Create terrain physics
     // We'll keep this method platform-agnostic and let the physics system handle the details
@@ -160,7 +164,10 @@ export class TerrainSystem extends System {
     if (physicsBody) {
       // Store reference to physics body
       this.terrainBodies.set(entity.id, physicsBody);
+      return physicsBody;
     }
+    
+    return null;
   }
   
   update(deltaTime) {
@@ -168,6 +175,8 @@ export class TerrainSystem extends System {
     const terrainEntities = this.world.with('terrain');
     
     for (const entity of terrainEntities) {
+      if (!entity || !entity.terrain) continue; // Add this check
+      
       // Generate points if needed
       if (!entity.terrain.points || entity.terrain.points.length === 0) {
         this.generateTerrainPoints(entity);

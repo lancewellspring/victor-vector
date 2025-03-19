@@ -8,6 +8,7 @@ export class System {
     this.enabled = true;
     this.priority = 0;
     this.name = this.constructor.name;
+    this.eventSubscriptions = [];
   }
   
   /**
@@ -16,7 +17,27 @@ export class System {
    */
   init(world) {
     this.world = world;
+    this.registerEvents();
     return this;
+  }
+  
+  /**
+   * Register event handlers
+   * Override in subclasses to add event handling
+   */
+  registerEvents() {
+    // Override in subclasses
+  }
+  
+   /**
+   * Subscribe to an event
+   * @param {string} event - Event name
+   * @param {Function} callback - Function to call when event occurs
+   */
+  subscribe(event, callback) {
+    const unsubscribe = this.world.events.on(event, callback, this);
+    this.eventSubscriptions.push(unsubscribe);
+    return unsubscribe;
   }
   
   /**
@@ -48,5 +69,10 @@ export class System {
    */
   destroy() {
     // Override in subclasses if needed
+    // Unsubscribe from all events
+    for (const unsubscribe of this.eventSubscriptions) {
+      unsubscribe();
+    }
+    this.eventSubscriptions = [];
   }
 }

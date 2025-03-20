@@ -225,6 +225,34 @@ export class RenderSystem extends System {
     this.renderer.setSize(width, height);
   }
   
+  removeMesh(entity) {
+    if (!this.initialized || !entity) return;
+
+    const mesh = this.meshes.get(entity.id);
+    if (!mesh) return;
+
+    // Remove from scene
+    this.scene.remove(mesh);
+
+    // Dispose resources
+    if (mesh.geometry) mesh.geometry.dispose();
+    if (mesh.material) {
+      if (Array.isArray(mesh.material)) {
+        mesh.material.forEach(m => m.dispose());
+      } else {
+        mesh.material.dispose();
+      }
+    }
+
+    // Remove from meshes map
+    this.meshes.delete(entity.id);
+
+    // Clean up component references
+    if (entity.render) {
+      entity.render.mesh = null;
+    }
+  }
+  
   destroy() {
     // Clean up THREE.js resources
     for (const mesh of this.meshes.values()) {

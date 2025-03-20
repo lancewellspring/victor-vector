@@ -1,5 +1,5 @@
 // static/client/systems/terrain-renderer.js
-import { System } from '../../shared/systems/system.js';
+import { System } from '@shared/systems/system.js';
 import * as THREE from 'three';
 
 export class TerrainRendererSystem extends System {

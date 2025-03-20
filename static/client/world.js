@@ -1,35 +1,40 @@
-import { World } from 'miniplex';
-import { SystemRegistry } from '../shared/systems/registry.js';
-import { TerrainSystem } from '../shared/systems/terrain.js';
-import { ClientPhysicsSystem } from './systems/physics.js';
-import { TerrainRendererSystem } from './systems/terrain-renderer.js';
-import { RenderSystem } from './systems/render.js';
-import { InputSystem } from './systems/input.js';
-import { CameraSystem } from './systems/camera.js';
-import { BackgroundSystem } from './systems/background.js';
+import { World } from "miniplex";
+import { SystemRegistry } from "@shared/systems/registry.js";
+import { TerrainSystem } from "@shared/systems/terrain.js";
+import { ClientPhysicsSystem } from "./systems/physics.js";
+import { TerrainRendererSystem } from "./systems/terrain-renderer.js";
+import { RenderSystem } from "./systems/render.js";
+import { InputSystem } from "./systems/input.js";
+import { CameraSystem } from "./systems/camera.js";
+import { BackgroundSystem } from "./systems/background.js";
+import { PlayerSystem } from "@systems/player.js";
+import { InputProcessorSystem } from "./systems/input-processor.js";
+import { SegmentedTerrainSystem } from "@systems/segmented-terrain.js";
+import { VisualFeedbackSystem } from './systems/visual-feedback.js';
+import { DebugOverlaySystem } from './systems/debug-overlay.js';
 
 export class GameWorld {
   constructor() {
     // Create Miniplex world
     this.world = new World();
-    
+
     // Create entity ID counter
     this.nextEntityId = 1;
-    
+
     // Create system registry
     this.systems = new SystemRegistry();
-    
+
     // Game loop variables
     this.running = false;
     this.lastTime = 0;
   }
-  
+
   async init() {
-    console.log('Initializing game world...');
-    
+    console.log("Initializing game world...");
+
     // Register shared systems first
     this.systems.register(new TerrainSystem(), 15);
-    
+
     // Register client-specific systems
     this.systems.register(new InputSystem(), 10);
     this.systems.register(new ClientPhysicsSystem(), 20);
@@ -37,36 +42,63 @@ export class GameWorld {
     this.systems.register(new CameraSystem(), 40);
     this.systems.register(new BackgroundSystem(), 45); // Run before rendering
     this.systems.register(new RenderSystem(), 50);
-    
+    this.systems.register(new PlayerSystem(), 30);
+    this.systems.register(new InputProcessorSystem(), 15);
+    this.systems.register(new SegmentedTerrainSystem(), 10);
+    this.systems.register(new VisualFeedbackSystem(), 60);
+    this.systems.register(new DebugOverlaySystem(), 110);
+
     // Initialize all systems
     this.systems.initAll(this.world);
-    
+
     // Wait for physics system to initialize
     const physicsSystem = this.systems.getSystem(ClientPhysicsSystem);
     if (physicsSystem) {
       await physicsSystem.init(this.world);
     }
-    
-    console.log('Game world initialized');
+
+    console.log("Game world initialized");
     return this;
   }
-  
+
+  createTestVenture() {
+    const segmentedTerrainSystem = this.systems.getSystem(
+      SegmentedTerrainSystem
+    );
+    if (!segmentedTerrainSystem) return;
+
+    // Generate test venture terrain
+    const ventureId = "test_venture_001";
+    const ventureSeed = Math.floor(Math.random() * 10000);
+    const difficulty = 1;
+    const length = 5;
+
+    segmentedTerrainSystem.generateVentureTerrain(
+      ventureId,
+      ventureSeed,
+      difficulty,
+      length
+    );
+
+    console.log("Generated test venture terrain");
+  }
+
   createEntity(components = {}) {
     // Add id to entity
     const entity = {
       id: this.nextEntityId++,
-      ...components
+      ...components,
     };
-    
+
     // Add entity to world
     this.world.add(entity);
-    
+
     return entity;
   }
-  
+
   removeEntity(entity) {
     // Clean up resources first
-    
+
     // Remove from physics
     if (entity.physics) {
       const physicsSystem = this.systems.getSystem(ClientPhysicsSystem);
@@ -75,7 +107,7 @@ export class GameWorld {
         // (This would be implemented in the PhysicsSystem)
       }
     }
-    
+
     // Remove from renderer
     if (entity.render) {
       const renderSystem = this.systems.getSystem(RenderSystem);
@@ -85,41 +117,41 @@ export class GameWorld {
         renderSystem.meshes.delete(entity.id);
       }
     }
-    
+
     // Remove from world
     this.world.remove(entity);
   }
-  
+
   start() {
     if (this.running) return;
-    
+
     this.running = true;
     this.lastTime = performance.now();
     requestAnimationFrame(this.gameLoop.bind(this));
-    
-    console.log('Game loop started');
+
+    console.log("Game loop started");
   }
-  
+
   stop() {
     this.running = false;
-    console.log('Game loop stopped');
+    console.log("Game loop stopped");
   }
-  
+
   gameLoop(timestamp) {
     if (!this.running) return;
-    
+
     // Calculate delta time in seconds
     const now = timestamp || performance.now();
     const deltaTime = Math.min((now - this.lastTime) / 1000, 0.1); // Cap at 100ms
     this.lastTime = now;
-    
+
     // Update all game systems
     this.systems.updateAll(deltaTime);
-    
+
     // Schedule next frame
     requestAnimationFrame(this.gameLoop.bind(this));
   }
-  
+
   destroy() {
     this.stop();
     this.systems.destroyAll();

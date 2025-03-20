@@ -9,6 +9,28 @@ export class System {
     this.priority = 0;
     this.name = this.constructor.name;
     this.eventSubscriptions = [];
+    this.dependencies = []; // List of system names this system depends on
+  }
+  
+  /**
+   * Define systems that must be initialized before this one
+   * @param {...string} systemNames - Names of required systems
+   */
+  dependsOn(...systemNames) {
+    this.dependencies = systemNames;
+    return this;
+  }
+  
+  /**
+   * Get a system by name or type that this system depends on
+   * @param {string|Function} nameOrType - System name or class
+   */
+  getSystem(nameOrType) {
+    if (!this.world || !this.world.systems) {
+      return null;
+    }
+    
+    return this.world.systems.getSystem(nameOrType);
   }
   
   /**

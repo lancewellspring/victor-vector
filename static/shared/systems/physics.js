@@ -1,298 +1,383 @@
 // static/shared/systems/physics-system.js
-import { System } from './system.js';
-import * as RAPIER from '@dimforge/rapier2d-compat';
+import { System } from "./system.js";
+import * as RAPIER from "@dimforge/rapier2d-compat";
 
 export class PhysicsSystem extends System {
   constructor() {
     super();
-    this.name = 'PhysicsSystem';
+    this.name = "PhysicsSystem";
     this.priority = 20;
-    this.world = null;
     this.physicsWorld = null;
-    this.initialized = false;
-    this.bodies = new Map(); // Map entity IDs to physics bodies
-    this.characterControllers = new Map(); // Map entity IDs to character controllers
+    this.bodies = new Map(); // entity ID → physics body
+    this.characterControllers = new Map(); // entity ID → controller
+    this.collisionPairs = []; // collisions detected this frame
     this.PHYSICS_SCALE = 0.1; // Convert game units to physics units
-    
-    // Rapier reference (will be set during initialization)
-    this.RAPIER = null;
+    this.RAPIER = null; // Will be set during initialization
   }
-  
+
   async init(world) {
     super.init(world);
-    
-    // Load Rapier
-    if (typeof RAPIER === 'undefined') {
-      console.error('RAPIER not found - PhysicsSystem requires Rapier.js to be loaded');
-      return this;
+
+    // Get Rapier reference
+    if (typeof window !== "undefined" && window.RAPIER) {
+      this.RAPIER = window.RAPIER;
+    } else {
+      try {
+        this.RAPIER = await import("@dimforge/rapier2d-compat");
+      } catch (err) {
+        console.error("Failed to load Rapier:", err);
+        return this;
+      }
     }
-    
-    this.RAPIER = RAPIER;
-    
+
     // Initialize Rapier
-    if (typeof this.RAPIER.init === 'function') {
+    if (typeof this.RAPIER.init === "function") {
       await this.RAPIER.init();
     }
-    
-    // Create the physics world
+
+    // Create physics world
     this.physicsWorld = new this.RAPIER.World({ x: 0, y: -9.81 });
-    console.log('Physics world created successfully');
-    
-    this.initialized = true;
-    
-    // Initialize existing physics entities
-    this.initExistingEntities();
-    
+
+    // Setup collision events
+    this.setupCollisionEvents();
+
     return this;
   }
-  
-  initExistingEntities() {
-    // Find all entities with physics components and initialize them
-    const physicsEntities = this.world.with('physics', 'transform');
-    
-    for (const entity of physicsEntities) {
-      this.createRigidBody(entity);
-    }
+
+  setupCollisionEvents() {
+    const world = this.physicsWorld;
+
+    // Create event handler for collisions
+    world.contactPairEvents().forEach((event) => {
+      const collider1 = event.collider1();
+      const collider2 = event.collider2();
+
+      // Get rigid bodies
+      const body1 = collider1.parent();
+      const body2 = collider2.parent();
+
+      // Get entity IDs (stored as userData)
+      const entityId1 = body1?.userData;
+      const entityId2 = body2?.userData;
+
+      if (entityId1 && entityId2) {
+        // Store collision pair to process during update
+        this.collisionPairs.push({
+          entityA: entityId1,
+          entityB: entityId2,
+          type: event.started() ? "begin" : "end",
+        });
+      }
+    });
   }
-  
-  createRigidBody(entity) {
-    if (!this.initialized || !entity.physics || !entity.transform) return null;
-    
-    const { physics, transform } = entity;
-    
-    if (this.bodies.has(entity.id)) {
-      return this.bodies.get(entity.id);
+
+  processCollisions() {
+    // Process all collision pairs collected during physics step
+    for (const collision of this.collisionPairs) {
+      const entityA = this.world.getEntity(collision.entityA);
+      const entityB = this.world.getEntity(collision.entityB);
+
+      if (entityA && entityB) {
+        // Emit collision event
+        this.world.events.emit("collision", {
+          entityA,
+          entityB,
+          type: collision.type,
+        });
+      }
     }
-    
-    // Create rigid body description based on body type
+
+    // Clear collision pairs for next frame
+    this.collisionPairs = [];
+  }
+
+  createRigidBody(entity) {
+    const { physics, transform } = entity;
+
+    // Skip if already created
+    if (physics.rigidBody) return physics.rigidBody;
+
+    // Create body description based on type
     let bodyDesc;
     switch (physics.bodyType) {
-      case 'static':
+      case "static":
         bodyDesc = this.RAPIER.RigidBodyDesc.fixed();
         break;
-      case 'kinematic':
+      case "kinematic":
         bodyDesc = this.RAPIER.RigidBodyDesc.kinematicPositionBased();
         break;
-      case 'dynamic':
+      case "dynamic":
       default:
         bodyDesc = this.RAPIER.RigidBodyDesc.dynamic();
-        break;
     }
-    
-    // Set initial position
+
+    // Set position (scaled to physics units)
     bodyDesc.setTranslation(
       transform.x * this.PHYSICS_SCALE,
       transform.y * this.PHYSICS_SCALE
     );
-    
+
     // Create rigid body
     const rigidBody = this.physicsWorld.createRigidBody(bodyDesc);
-    
-    // Create collider based on collider type
-    let colliderDesc;
-    switch (physics.colliderType) {
-      case 'circle':
-        colliderDesc = this.RAPIER.ColliderDesc.ball(physics.radius * this.PHYSICS_SCALE);
-        break;
-      case 'box':
-      default:
-        colliderDesc = this.RAPIER.ColliderDesc.cuboid(
-          physics.width * this.PHYSICS_SCALE / 2,
-          physics.height * this.PHYSICS_SCALE / 2
-        );
-        break;
-    }
-    
-    // Set physics material properties
-    colliderDesc.setFriction(physics.friction);
-    colliderDesc.setRestitution(physics.restitution);
-    
-    // Create collider
-    const collider = this.physicsWorld.createCollider(colliderDesc, rigidBody);
-    
-    // Store references to Rapier objects
-    physics.rigidbody = rigidBody;
-    physics.collider = collider;
-    
-    // Store mapping from entity to rigid body
-    this.bodies.set(entity.id, { rigidBody, collider });
-    
+    rigidBody.userData = entity.id; // Store entity ID for collision lookup
+
+    // Store reference
+    physics.rigidBody = rigidBody;
+    this.bodies.set(entity.id, rigidBody);
+
+    // Create collider based on type
+    this.createCollider(entity);
+
     // Create character controller if needed
     if (physics.isCharacter) {
       this.createCharacterController(entity);
     }
-    
-    return { rigidBody, collider };
+
+    return rigidBody;
   }
-  
+
+  createCollider(entity) {
+    const { physics } = entity;
+
+    if (!physics.rigidBody) return null;
+
+    // Create collider description based on type
+    let colliderDesc;
+    switch (physics.colliderType) {
+      case "circle":
+        colliderDesc = this.RAPIER.ColliderDesc.ball(
+          physics.radius * this.PHYSICS_SCALE
+        );
+        break;
+      case "box":
+      default:
+        colliderDesc = this.RAPIER.ColliderDesc.cuboid(
+          (physics.width * this.PHYSICS_SCALE) / 2,
+          (physics.height * this.PHYSICS_SCALE) / 2
+        );
+    }
+
+    // Set material properties
+    colliderDesc.setFriction(physics.friction);
+    colliderDesc.setRestitution(physics.restitution);
+
+    // Create collider
+    const collider = this.physicsWorld.createCollider(
+      colliderDesc,
+      physics.rigidBody
+    );
+
+    // Store reference
+    physics.collider = collider;
+
+    return collider;
+  }
+
   createCharacterController(entity) {
-    if (!this.initialized || !entity.physics || !entity.physics.isCharacter) return null;
-    
+    const { physics } = entity;
+
+    if (!physics.rigidBody || !physics.collider) return null;
+
+    // Create character controller
     const controller = this.physicsWorld.createCharacterController(0.01);
-    
-    // Configure character controller
-    controller.setMaxSlopeClimbAngle(45 * Math.PI / 180);
-    controller.setMinSlopeSlideAngle(30 * Math.PI / 180);
+
+    // Configure controller
+    controller.setMaxSlopeClimbAngle((45 * Math.PI) / 180);
+    controller.setMinSlopeSlideAngle((30 * Math.PI) / 180);
     controller.enableAutostep(0.5, 0.2, true);
     controller.enableSnapToGround(0.5);
-    
-    // Store controller reference
+
+    // Store reference
+    physics.controller = controller;
     this.characterControllers.set(entity.id, controller);
-    entity.physics.controller = controller;
-    
+
     return controller;
   }
-  
-  createTerrainCollider(points, options) {
-    if (!this.initialized) return null;
-    
-    // Create a static rigid body for the terrain
-    const rigidBodyDesc = this.RAPIER.RigidBodyDesc.fixed();
-    const rigidBody = this.physicsWorld.createRigidBody(rigidBodyDesc);
-    
-    // Convert points to heights for a heightfield collider
-    const heights = points.map(p => p.y * this.PHYSICS_SCALE);
-    const width = points[points.length - 1].x - points[0].x;
-    const scale = width / (points.length - 1) * this.PHYSICS_SCALE;
-    
-    // Create heightfield collider
-    const colliderDesc = this.RAPIER.ColliderDesc.heightfield(
-      points.length - 1,
-      heights,
-      { x: scale, y: 1.0 }
-    );
-    
-    colliderDesc.setFriction(options.friction || 0.5);
-    colliderDesc.setRestitution(options.restitution || 0.1);
-    
-    const collider = this.physicsWorld.createCollider(colliderDesc, rigidBody);
-    
-    // Position the terrain correctly
-    rigidBody.setTranslation({
-      x: points[0].x * this.PHYSICS_SCALE,
-      y: 0
-    });
-    
-    // Store reference if terrain ID provided
-    if (options.terrainId) {
-      this.bodies.set(options.terrainId, { rigidBody, collider });
+
+  teleportEntity(entity, x, y) {
+    if (!this.initialized || !entity.physics || !entity.physics.rigidbody)
+      return false;
+
+    // Convert to physics units
+    const physX = x * this.PHYSICS_SCALE;
+    const physY = y * this.PHYSICS_SCALE;
+
+    // Set position directly
+    if (entity.physics.bodyType === "dynamic") {
+      entity.physics.rigidbody.setTranslation({ x: physX, y: physY }, true);
+    } else {
+      entity.physics.rigidbody.setNextKinematicTranslation({
+        x: physX,
+        y: physY,
+      });
     }
-    
-    return { rigidBody, collider };
+
+    // Update transform
+    entity.transform.x = x;
+    entity.transform.y = y;
+
+    return true;
   }
-  
+
   update(deltaTime) {
-    if (!this.initialized) return;
-    
     // Step the physics simulation
     this.physicsWorld.step();
-    
-    // Update transform components from physics state
-    const physicsEntities = this.world.with('physics', 'transform');
-    
+
+    // Process collision events
+    this.processCollisions();
+
+    // Update transform components from physics bodies
+    const physicsEntities = this.world.with("physics", "transform");
+
     for (const entity of physicsEntities) {
-      this.updateEntityFromPhysics(entity);
+      this.updateTransformFromPhysics(entity);
     }
-    
+
     // Update grounded state for character controllers
-    this.updateCharacterGroundedState();
+    this.updateGroundedStates();
   }
-  
-  updateEntityFromPhysics(entity) {
+
+  updateTransformFromPhysics(entity) {
     const { physics, transform } = entity;
-    
-    if (!physics.rigidbody) return;
-    
-    // Skip if transform shouldn't be controlled by physics
-    if (!transform.physicsControlled) return;
-    
+
+    if (!physics.rigidBody || !transform.physicsControlled) return;
+
     // Get position from physics body
-    const position = physics.rigidbody.translation();
-    
-    // Update transform with physics position (convert back to game units)
+    const position = physics.rigidBody.translation();
+
+    // Scale back to game units
     transform.x = position.x / this.PHYSICS_SCALE;
     transform.y = position.y / this.PHYSICS_SCALE;
-    
-    // If the body is a dynamic body, update rotation as well
-    if (physics.bodyType === 'dynamic') {
-      const rotation = physics.rigidbody.rotation();
-      transform.rotationZ = rotation;
+
+    // Update rotation for dynamic bodies
+    if (physics.bodyType === "dynamic") {
+      transform.rotationZ = physics.rigidBody.rotation();
     }
   }
-  
-  updateCharacterGroundedState() {
+
+  updateGroundedStates() {
+    // Cast a ray downward for each character controller
     for (const [entityId, controller] of this.characterControllers.entries()) {
-      const entity = this.world.entities.find(e => e.id === entityId);
-      if (entity && entity.physics) {
-        // Update grounded state with a ray cast
-        const position = entity.physics.rigidbody.translation();
-        
-        // Cast a short ray downward to check for ground
-        const rayOrigin = { x: position.x, y: position.y };
-        const rayDir = { x: 0, y: -1 };
-        const hit = this.physicsWorld.castRay(
-          rayOrigin, 
-          rayDir, 
-          0.2, // Max distance
-          true  // Solid objects only
-        );
-        
+      const entity = this.world.getEntity(entityId);
+
+      if (entity && entity.physics && entity.physics.rigidBody) {
+        const pos = entity.physics.rigidBody.translation();
+
+        // Cast ray downward a short distance
+        const ray = { x: pos.x, y: pos.y };
+        const dir = { x: 0, y: -1 };
+
+        const hit = this.physicsWorld.castRay(ray, dir, 0.2, true);
+
+        // Update grounded state
         entity.physics.grounded = hit !== null;
       }
     }
   }
-  
-  moveCharacter(entity, movement) {
-    if (!this.initialized || !entity.physics || !entity.physics.isCharacter) return false;
-    
-    const controller = this.characterControllers.get(entity.id);
-    if (!controller) return false;
-    
-    const collider = entity.physics.collider;
-    if (!collider) return false;
-    
-    // Scale movement to physics units
-    const physicsMovement = {
-      x: movement.x * this.PHYSICS_SCALE,
-      y: movement.y * this.PHYSICS_SCALE
+
+  // Helper for character movement (called by InputSystem)
+  moveCharacter(entity, direction) {
+    const { physics } = entity;
+
+    if (!physics.isCharacter || !physics.controller) return false;
+
+    // Calculate desired movement
+    const movement = {
+      x: direction * physics.moveSpeed * this.PHYSICS_SCALE,
+      y: 0,
     };
-    
+
     // Compute collision-free movement
-    controller.computeColliderMovement(collider, physicsMovement);
-    
+    physics.controller.computeColliderMovement(physics.collider, movement);
+
     // Get the corrected movement
-    const computedMovement = controller.computedMovement();
-    
+    const computedMovement = physics.controller.computedMovement();
+
     // Apply the movement
-    const currentPos = entity.physics.rigidbody.translation();
-    entity.physics.rigidbody.setNextKinematicTranslation({
+    const currentPos = physics.rigidBody.translation();
+    physics.rigidBody.setNextKinematicTranslation({
       x: currentPos.x + computedMovement.x,
-      y: currentPos.y + computedMovement.y
+      y: currentPos.y + computedMovement.y,
     });
-    
+
     return true;
   }
-  
-  applyImpulse(entity, impulse) {
-    if (!this.initialized || !entity.physics || !entity.physics.rigidbody) return;
-    
-    // Only apply impulses to dynamic bodies
-    if (entity.physics.bodyType !== 'dynamic') return;
-    
-    // Scale impulse to physics units
-    const physicsImpulse = {
-      x: impulse.x * this.PHYSICS_SCALE,
-      y: impulse.y * this.PHYSICS_SCALE
-    };
-    
-    entity.physics.rigidbody.applyImpulse(physicsImpulse, true);
+
+  // Helper for character jumping (called by InputSystem)
+  jumpCharacter(entity) {
+    const { physics } = entity;
+
+    if (!physics.isCharacter || !physics.grounded) return false;
+
+    // Apply jump impulse
+    const currentPos = physics.rigidBody.translation();
+    physics.rigidBody.setTranslation({
+      x: currentPos.x,
+      y: currentPos.y + physics.jumpForce * this.PHYSICS_SCALE,
+    });
+
+    // Update grounded state
+    physics.grounded = false;
+
+    return true;
   }
-  
+
+  // Create terrain collider from points
+  createTerrainCollider(points, options = {}) {
+    // Create static rigid body for terrain
+    const rigidBodyDesc = this.RAPIER.RigidBodyDesc.fixed();
+    const rigidBody = this.physicsWorld.createRigidBody(rigidBodyDesc);
+
+    // Convert points to heights for heightfield
+    const heights = points.map((p) => p.y * this.PHYSICS_SCALE);
+
+    // Create heightfield collider
+    const colliderDesc = this.RAPIER.ColliderDesc.heightfield(
+      heights.length - 1,
+      heights,
+      { x: 1.0, y: 1.0 }
+    );
+
+    // Set material properties
+    colliderDesc.setFriction(options.friction || 0.5);
+    colliderDesc.setRestitution(options.restitution || 0.1);
+
+    // Create collider
+    const collider = this.physicsWorld.createCollider(colliderDesc, rigidBody);
+
+    // Position the terrain
+    rigidBody.setTranslation({
+      x: points[0].x * this.PHYSICS_SCALE,
+      y: 0,
+    });
+
+    return { rigidBody, collider };
+  }
+
+  removeBody(entity) {
+    if (!this.initialized || !entity || !entity.physics) return;
+
+    // Remove from physics world
+    if (entity.physics.rigidbody) {
+      this.physicsWorld.removeRigidBody(entity.physics.rigidbody);
+    }
+
+    // Remove from internal maps
+    this.bodies.delete(entity.id);
+    this.characterControllers.delete(entity.id);
+
+    // Clean up component references
+    if (entity.physics) {
+      entity.physics.rigidbody = null;
+      entity.physics.collider = null;
+      entity.physics.controller = null;
+    }
+  }
+
   destroy() {
     // Clean up physics resources
     this.bodies.clear();
     this.characterControllers.clear();
     this.physicsWorld = null;
-    this.initialized = false;
   }
 }

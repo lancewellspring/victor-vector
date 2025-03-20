@@ -41,12 +41,51 @@ function createWorld() {
   };
   
   /**
-   * Helper to remove an entity
+   * Enhanced entity removal with proper resource cleanup
    * @param {Object} entity - The entity to remove
    */
   world.removeEntity = function(entity) {
+    if (!entity) return;
+    
+    // Emit entity will be removed event to allow systems to clean up
+    this.events.emit('entityWillBeRemoved', { entity });
+    
+    // Handle special component cleanup
+    this.cleanupEntityComponents(entity);
+    
+    // Emit entity removed event
     this.events.emit('entityRemoved', { entity });
+    
+    // Remove from Miniplex world
     return this.remove(entity);
+  };
+  
+  /**
+   * Clean up component-specific resources
+   * @param {Object} entity - The entity being removed
+   */
+  world.cleanupEntityComponents = function(entity) {
+    // Handle physics cleanup
+    if (entity.physics) {
+      // Find physics system and remove body
+      const systems = this.systems || [];
+      const physicsSystem = systems.find(s => s.name === 'PhysicsSystem');
+      if (physicsSystem) {
+        physicsSystem.removeBody(entity);
+      }
+    }
+    
+    // Handle render cleanup
+    if (entity.render) {
+      // Find render system and remove mesh
+      const systems = this.systems || [];
+      const renderSystem = systems.find(s => s.name === 'RenderSystem');
+      if (renderSystem) {
+        renderSystem.removeMesh(entity);
+      }
+    }
+    
+    // Handle other component-specific cleanup...
   };
   
   world.validateComponents = function(components) {

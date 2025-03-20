@@ -7,6 +7,7 @@ import './player.js';
 import './render.js';
 import './terrain.js';
 import './transform.js';
+import './skill.js';
 // Add more imports as you create them
 
 export {

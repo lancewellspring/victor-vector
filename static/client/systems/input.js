@@ -78,77 +78,39 @@ export class InputSystem extends System {
   update(deltaTime) {
     if (!this.initialized || !this.hasFocus) return;
     
-    // Find all player-controlled entities (entities with input component)
-    const inputEntities = this.world.with('input', 'transform', 'physics');
+    const physicsSystem = this.world.systems.find(sys => sys instanceof PhysicsSystem);
+    if (!physicsSystem) return;
     
-    for (const entity of inputEntities) {
-      this.processEntityInput(entity, deltaTime);
+    // Find player entity (with input and physics components)
+    const playerEntities = this.world.with('input', 'physics'); //not include transform?
+    
+    for (const entity of playerEntities) {
+      // Skip entities that aren't player controlled
+      if (!entity.input.isPlayerControlled) continue;
+      
+      // Calculate movement direction
+      let moveDirection = 0;
+      if (this.isKeyDown('ArrowLeft') || this.isKeyDown('a')) {
+        moveDirection -= 1;
+      }
+      if (this.isKeyDown('ArrowRight') || this.isKeyDown('d')) {
+        moveDirection += 1;
+      }
+      
+      // Apply movement
+      if (moveDirection !== 0) {
+        physicsSystem.moveCharacter(entity, moveDirection);
+      }
+      
+      // Handle jumping
+      if ((this.isKeyDown('ArrowUp') || this.isKeyDown('w') || this.isKeyDown(' ')) && 
+          entity.physics.grounded) {
+        physicsSystem.jumpCharacter(entity);
+      }
     }
     
     // Store key states for next frame
     this.previousKeys = {...this.keys};
-  }
-  
-  processEntityInput(entity, deltaTime) {
-    const { input, physics } = entity;
-    
-    // Skip if not player controlled
-    if (!input.isPlayerControlled) return;
-    
-    // Calculate movement direction
-    let moveDirection = 0;
-    
-    if (this.isKeyDown('ArrowLeft') || this.isKeyDown('a')) {
-      moveDirection -= 1;
-    }
-    
-    if (this.isKeyDown('ArrowRight') || this.isKeyDown('d')) {
-      moveDirection += 1;
-    }
-    
-    // Apply movement
-    if (moveDirection !== 0) {
-      // If we have a physics system and this is a character controller
-      if (physics.isCharacter) {
-        // Get reference to physics system
-        const physicsSystem = this.world.systems.find(sys => sys instanceof PhysicsSystem);
-        if (physicsSystem) {
-          physicsSystem.moveCharacter(entity, {
-            x: moveDirection * this.MOVE_SPEED * deltaTime,
-            y: 0
-          });
-          
-          // Update facing direction in input component
-          input.facing = moveDirection > 0 ? 'right' : 'left';
-        }
-      } else {
-        // Otherwise, apply direct velocity change
-        physics.velocity.x = moveDirection * this.MOVE_SPEED;
-      }
-    } else if (!physics.isCharacter) {
-      // Slow down if no direction keys pressed (for non-character controllers)
-      physics.velocity.x *= 0.9;
-    }
-    
-    // Handle jumping
-    if (physics.grounded && (this.isKeyPressed('ArrowUp') || this.isKeyPressed('w') || this.isKeyPressed(' '))) {
-      // Apply jump force
-      if (physics.isCharacter) {
-        const physicsSystem = this.world.systems.find(sys => sys instanceof PhysicsSystem);
-        if (physicsSystem) {
-          physicsSystem.moveCharacter(entity, {
-            x: 0,
-            y: this.JUMP_FORCE * deltaTime
-          });
-        }
-      } else {
-        // Apply impulse for non-character controllers
-        physics.velocity.y = this.JUMP_FORCE;
-      }
-      
-      // Set grounded to false immediately to prevent multiple jumps
-      physics.grounded = false;
-    }
   }
   
   destroy() {

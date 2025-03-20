@@ -4,42 +4,41 @@ import { registerComponent } from './registry.js';
  * Physics Component - Handles physical properties and collision
  * @returns {Object} Default physics component data
  */
+// static/shared/components/physics.js
 function createPhysics() {
   return {
     // Physics body type
-    bodyType: 'dynamic', // dynamic, static, kinematic
+    bodyType: 'dynamic', // dynamic, static, kinematic, character
     
     // Collider properties
-    colliderType: 'box', // box, circle, convex, etc.
+    colliderType: 'box', // box, circle, convex, heightfield
+    
+    // Dimensions (used based on colliderType)
     width: 1,
     height: 1,
-    depth: 1,
     radius: 0.5,
+    points: [], // For convex/heightfield colliders
     
-    // Physics material properties
+    // Physics properties
     friction: 0.2,
-    restitution: 0.2, // Bounciness
+    restitution: 0.2,
     
-    // Physics state
-    velocity: { x: 0, y: 0, z: 0 },
-    angularVelocity: { x: 0, y: 0, z: 0 },
-    
-    // Gravity multiplier (1.0 = normal gravity)
-    gravityScale: 1.0,
-    
-    // Collision groups and masks
-    collisionGroup: 1,
-    collisionMask: 0xFFFF, // Collide with everything by default
-    
-    // Rapier.js references (will be set by PhysicsSystem)
-    rigidbody: null,
-    collider: null,
-    
-    // For character controller
-    isCharacter: false,
+    // Movement state
+    velocity: { x: 0, y: 0 },
     grounded: false,
     
-    // For network synchronization
+    // Character controller specific
+    isCharacter: false,
+    jumpForce: 5,
+    moveSpeed: 3,
+    maxSlope: 45, // degrees
+    
+    // References (set by physics system)
+    rigidBody: null,
+    collider: null,
+    controller: null,
+    
+    // Network state
     lastProcessedInput: 0
   };
 }

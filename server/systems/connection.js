@@ -3,12 +3,12 @@
  * Manages WebSocket connections and routes messages
  */
 
-const { System } = require('@static/shared/systems/system.js');
-const sessions = require('../network/sessions');
-const messages = require('../network/messages');
-const { createComponent } = require('@static/shared/components');
+import { System } from '../../static/shared/systems/system.js';
+import sessions from '../network/sessions.js';
+import messages from '../network/messages.js';
+import { createComponent } from '../../static/shared/components/index.js';
 
-class ConnectionSystem extends System {
+export class ConnectionSystem extends System {
   constructor(wss) {
     super();
     this.name = 'ConnectionSystem';
@@ -238,7 +238,7 @@ class ConnectionSystem extends System {
     this.lastClientUpdate = now;
     
     // Find all entities with serverPhysics that need syncing
-    const syncEntities = this.world.with('serverPhysics', 'transform').filter(
+    const syncEntities = this.world.with('serverPhysics', 'transform').where(
       entity => entity.serverPhysics.needsSync
     );
     
@@ -409,5 +409,3 @@ class ConnectionSystem extends System {
     super.destroy();
   }
 }
-
-module.exports = ConnectionSystem;

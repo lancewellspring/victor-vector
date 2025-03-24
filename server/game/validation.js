@@ -320,7 +320,7 @@ function checkRateLimit(session, actionType) {
   }
 }
 
-module.exports = {
+const validations =  {
   validateJoinRequest,
   validateInputMessage,
   validateChatMessage,
@@ -330,3 +330,5 @@ module.exports = {
   validateSkillUsage,
   checkRateLimit
 };
+
+export default validations;

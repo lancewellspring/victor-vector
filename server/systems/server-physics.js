@@ -4,15 +4,15 @@
  */
 
 // Import shared System base class
-const { System } = require('@static/shared/systems/system.js');
+import { System } from "../../static/shared/systems/system.js";
 // Import RAPIER physics engine
-const RAPIER = require('@dimforge/rapier2d-compat');
+import RAPIER from '@dimforge/rapier2d-compat';
 // Import validation module
-const validation = require('../game/validation');
+import validation from '../game/validation.js';
 // Import WebSocket module for sending updates
-const websocket = require('../network/websocket');
+import websocket from '../network/websocket.js';
 
-class ServerPhysicsSystem extends System {
+export class ServerPhysicsSystem extends System {
   constructor() {
     super();
     this.name = 'ServerPhysicsSystem';
@@ -62,27 +62,27 @@ class ServerPhysicsSystem extends System {
     const world = this.physicsWorld;
     
     // Create event handler for collisions
-    world.contactPairEvents().forEach((event) => {
-      const collider1 = event.collider1();
-      const collider2 = event.collider2();
+//     world.contactPairEvents().forEach((event) => {
+//       const collider1 = event.collider1();
+//       const collider2 = event.collider2();
       
-      // Get rigid bodies
-      const body1 = collider1.parent();
-      const body2 = collider2.parent();
+//       // Get rigid bodies
+//       const body1 = collider1.parent();
+//       const body2 = collider2.parent();
       
-      // Get entity IDs (stored as userData)
-      const entityId1 = body1?.userData;
-      const entityId2 = body2?.userData;
+//       // Get entity IDs (stored as userData)
+//       const entityId1 = body1?.userData;
+//       const entityId2 = body2?.userData;
       
-      if (entityId1 && entityId2) {
-        // Store collision pair to process during update
-        this.collisionPairs.push({
-          entityA: entityId1,
-          entityB: entityId2,
-          type: event.started() ? 'begin' : 'end'
-        });
-      }
-    });
+//       if (entityId1 && entityId2) {
+//         // Store collision pair to process during update
+//         this.collisionPairs.push({
+//           entityA: entityId1,
+//           entityB: entityId2,
+//           type: event.started() ? 'begin' : 'end'
+//         });
+//       }
+//     });
   }
   
   initializeExistingEntities() {
@@ -513,7 +513,7 @@ class ServerPhysicsSystem extends System {
     if (!connectionSystem) return;
     
     // Get entities that need synchronization
-    const syncEntities = this.world.with('serverPhysics').filter(entity => 
+    const syncEntities = this.world.with('serverPhysics').where(entity => 
       entity.serverPhysics.needsSync
     );
     
@@ -650,5 +650,3 @@ class ServerPhysicsSystem extends System {
     super.destroy();
   }
 }
-
-module.exports = ServerPhysicsSystem;

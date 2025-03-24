@@ -191,7 +191,7 @@ function getSessionInfo() {
   return sessions;
 }
 
-module.exports = {
+const sessions = {
   createSession,
   getSession,
   removeSession,
@@ -203,3 +203,5 @@ module.exports = {
   getActiveConnectionCount,
   getSessionInfo
 };
+
+export default sessions;

@@ -1,4 +1,5 @@
 {
+  "type":"module",
   "name": "hello-sqlite",
   "version": "0.1.1",
   "description": "A Node app with SQLite database, instantly up and running.",

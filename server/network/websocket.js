@@ -3,10 +3,11 @@
  * Handles connections, message routing, and connection lifecycle
  */
 
-const WebSocket = require('ws');
-const { v4: uuidv4 } = require('uuid');
-const sessions = require('./sessions');
-const messages = require('./messages');
+import { WebSocket, WebSocketServer } from 'ws';
+import { v4 as uuidv4 } from 'uuid';
+import sessions from './sessions.js';
+import messages from './messages.js';
+
 
 /**
  * Create and configure WebSocket server
@@ -16,7 +17,7 @@ const messages = require('./messages');
  */
 function createWebSocketServer(server, gameWorld) {
   // Create WebSocket server attached to HTTP server
-  const wss = new WebSocket.Server({
+  const wss = new WebSocketServer({
     server,
     path: '/ws',
     clientTracking: true
@@ -26,10 +27,10 @@ function createWebSocketServer(server, gameWorld) {
   wss.gameWorld = gameWorld;
 
   // Connection handling
-  wss.on('connection', (ws, req) => handleConnection(wss, ws, req));
+  wss.on('connection', (ws, req) => this.handleConnection(wss, ws, req));
 
   // Start heartbeat interval
-  const heartbeatInterval = setInterval(() => checkConnections(wss), 30000);
+  const heartbeatInterval = setInterval(() => this.checkConnections(wss), 30000);
   wss.heartbeatInterval = heartbeatInterval;
 
   // Attach cleanup method
@@ -69,14 +70,14 @@ function handleConnection(wss, ws, req) {
   ws.on('message', (data) => {
     try {
       const message = JSON.parse(data);
-      handleMessage(wss, ws, message);
+      this.handleMessage(wss, ws, message);
     } catch (error) {
       console.error(`Error processing message from ${clientId}:`, error);
     }
   });
 
   // Handle disconnection
-  ws.on('close', () => handleDisconnect(wss, ws));
+  ws.on('close', () => this.handleDisconnect(wss, ws));
 
   // Create session
   sessions.createSession(clientId, ws);
@@ -212,13 +213,18 @@ function broadcastMessage(wss, type, data, excludeClientId = null) {
   wss.clients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN && 
         (!excludeClientId || client.clientId !== excludeClientId)) {
-      sendMessage(client, type, data);
+      this.sendMessage(client, type, data);
     }
   });
 }
 
-module.exports = {
-  createWebSocketServer,
+const websocket = {
+  broadcastMessage,
   sendMessage,
-  broadcastMessage
+  handleMessage,
+  checkConnections,
+  handleDisconnect,
+  createWebSocketServer
 };
+
+export default websocket;

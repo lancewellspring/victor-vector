@@ -3,9 +3,9 @@
  * Processes client messages and triggers appropriate game logic
  */
 
-const sessions = require('./sessions');
-const validation = require('../game/validation');
-const { createComponent } = require('@static/shared/components');
+import sessions from './sessions.js';
+import validation from '../game/validation.js';
+import { createComponent } from '../../static/shared/components/index.js';
 
 /**
  * Handle client join message
@@ -358,14 +358,7 @@ function sendWorldState(ws, gameWorld) {
   });
 }
 
-// Export functions
 
-module.exports = {
-  handleJoinMessage,
-  handleInputMessage,
-  handleChatMessage,
-  handleVentureMessage
-};
 
 // These functions would be imported from the WebSocket module
 // Defined here to avoid circular dependencies
@@ -423,3 +416,14 @@ function sendWhisper(wss, fromId, toId, message) {
   // Implementation will be added later
   console.log('sendWhisper not fully implemented');
 }
+
+// Export functions
+
+const messages = {
+  handleJoinMessage,
+  handleInputMessage,
+  handleChatMessage,
+  handleVentureMessage
+};
+
+export default messages;

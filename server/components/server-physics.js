@@ -4,7 +4,7 @@
  */
 
 // Use shared components registry
-const { registerComponent } = require('@static/shared/components/registry');
+import { registerComponent } from '../../static/shared/components/registry';
 
 /**
  * Create a default ServerPhysics component
@@ -50,6 +50,6 @@ function createServerPhysics() {
 registerComponent('serverPhysics', createServerPhysics);
 
 // Export for use in other server modules
-module.exports = {
+export {
   createServerPhysics
 };

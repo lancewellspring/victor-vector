@@ -7,9 +7,9 @@ import { RenderSystem } from "./systems/render.js";
 import { InputSystem } from "./systems/input.js";
 import { CameraSystem } from "./systems/camera.js";
 import { BackgroundSystem } from "./systems/background.js";
-import { PlayerSystem } from "@systems/player.js";
+import { PlayerSystem } from "@shared/systems/player.js";
 import { InputProcessorSystem } from "./systems/input-processor.js";
-import { SegmentedTerrainSystem } from "@systems/segmented-terrain.js";
+import { SegmentedTerrainSystem } from "@shared/systems/segmented-terrain.js";
 import { VisualFeedbackSystem } from './systems/visual-feedback.js';
 import { DebugOverlaySystem } from './systems/debug-overlay.js';
 

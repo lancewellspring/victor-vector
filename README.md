@@ -18,6 +18,13 @@ Players maintain a legacy through their House, which persists even as individual
 - **Express**: Backend API server
 - **ECS Architecture**: Entity Component System for game logic
 
+## Module System
+
+This project uses ES Modules (ESM) throughout both client and server code. Always use:
+- `import` statements instead of `require()`
+- `export` instead of `module.exports`
+- Named exports are preferred over default exports where appropriate
+
 ## Development Setup
 
 ### Prerequisites

@@ -115,7 +115,7 @@ function createWorld() {
    * @returns {Object|null} Entity or null if not found
    */
   world.getEntity = function(id) {
-    return this.entities.find(entity => entity.id === id) || null;
+    return this.find(entity => entity.id === id) || null;
   };
   
   /**
@@ -128,7 +128,7 @@ function createWorld() {
     // Original implementation might cause errors if entities lack expected structure
     // This safer version ensures we check for component existence properly
     
-    return this.entities.where(({entity}) => {
+    return this.where(({entity}) => {
       if (!entity) return false;
       
       return componentNames.every(componentName => {

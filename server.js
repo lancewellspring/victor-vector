@@ -1,14 +1,18 @@
-const express = require("express");
-const path = require("path");
-const sqlite3 = require("sqlite3").verbose();
-const http = require("http");
-const WebSocket = require("ws");
+import express from "express";
+import path from "path";
+import sqlite3 from "sqlite3";
+import http from "http";
+import WebSocket from "ws";
+import { fileURLToPath } from 'url';
 
 // Import game systems
-const { createWorld } = require('./static/shared/ecs/world.js');
-const ServerPhysicsSystem = require('./server/systems/server-physics.js');
-const ConnectionSystem = require('./server/systems/connection.js');
-const websocket = require('./server/network/websocket.js');
+import  { createWorld } from './static/shared/ecs/world.js';
+import {ServerPhysicsSystem} from './server/systems/server-physics.js';
+import {ConnectionSystem} from './server/systems/connection.js';
+import websocket from './server/network/websocket.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Database setup
 const db = new sqlite3.Database("game.db");

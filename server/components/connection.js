@@ -4,7 +4,7 @@
  */
 
 // Get access to the component registry
-import { registerComponent } from '../../static/shared/components';
+import { registerComponent } from '@static/shared/components';
 
 /**
  * Create a default Connection component

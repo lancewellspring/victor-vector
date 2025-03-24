@@ -1,208 +1,413 @@
 /**
- * Connection System for server-side networking
- * Manages client connections and message handling
+ * Connection System - Server-side
+ * Manages WebSocket connections and routes messages
  */
 
-// Import System base class
-import { System } from '../../static/shared/systems';
-import  { createComponent } from '../../static/shared/components';
+const { System } = require('@static/shared/systems/system.js');
+const sessions = require('../network/sessions');
+const messages = require('../network/messages');
+const { createComponent } = require('@static/shared/components');
 
 class ConnectionSystem extends System {
   constructor(wss) {
     super();
-    this.wss = wss;
-    this.connections = new Map();
-    this.messageHandlers = {};
+    this.name = 'ConnectionSystem';
+    this.priority = 10; // Run early to process inputs before physics
+    
+    this.wss = wss; // WebSocket server
+    this.connections = new Map(); // clientId -> connection entity
+    this.messageQueue = []; // Messages to process this frame
+    
+    this.lastClientUpdate = 0; // Track when we last sent updates
+    this.updateInterval = 50; // Update clients every 50ms (20 updates/second)
+    
+    this.clientUpdateBuffer = new Map(); // Buffer entity updates for each client
   }
   
-  /**
-   * Initialize the system with WebSocket server
-   * @param {WebSocket.Server} wss - WebSocket server instance
-   */
-  init(world, wss = null) {
+  init(world) {
     super.init(world);
     
-    if (wss) {
-      this.wss = wss;
+    // Set up event subscription
+    this.subscribe('entityCreated', this.handleEntityCreated.bind(this));
+    this.subscribe('entityRemoved', this.handleEntityRemoved.bind(this));
+    
+    // Set up message handlers for the WebSocket server
+    if (this.wss) {
+      this.setupMessageHandlers();
     }
-    
-    if (!this.wss) {
-      throw new Error('ConnectionSystem requires a WebSocket server');
-    }
-    
-    // Set up connection handling
-    this.wss.on('connection', this.handleNewConnection.bind(this));
-    
-    // Register default message handlers
-    this.registerHandler('join', this.handleJoin.bind(this));
-    this.registerHandler('input', this.handleInput.bind(this));
     
     return this;
   }
   
-  /**
-   * Handle new WebSocket connection
-   * @param {WebSocket} socket - The new client WebSocket
-   */
-  handleNewConnection(socket) {
-    console.log('New client connected');
+  setupMessageHandlers() {
+    // Set up connection handler
+    this.wss.on('connection', this.handleConnection.bind(this));
+  }
+  
+  handleConnection(ws, req) {
+    const clientId = req.headers['client-id'] || `client_${Math.random().toString(36).substr(2, 9)}`;
+    console.log(`New client connected: ${clientId}`);
     
-    // Generate client ID
-    const clientId = this.generateClientId();
+    // Initialize connection properties
+    ws.isAlive = true;
+    ws.lastActivity = Date.now();
+    ws.clientId = clientId;
     
-    // Create connection entity
-    const connectionEntity = this.world.createEntity({
-      connection: createComponent('connection', {
-        socket,
-        clientId,
-        lastMessageTime: Date.now()
-      })
+    // Set up ping/pong for connection monitoring
+    ws.on('pong', () => {
+      ws.isAlive = true;
+      ws.lastActivity = Date.now();
     });
     
-    // Store connection by client ID
-    this.connections.set(clientId, connectionEntity);
-    
     // Set up message handling
-    socket.on('message', (message) => {
+    ws.on('message', (message) => {
       try {
         const data = JSON.parse(message);
-        connectionEntity.connection.lastMessageTime = Date.now();
         
-        if (data.type && this.messageHandlers[data.type]) {
-          this.messageHandlers[data.type](connectionEntity, data.data);
-        } else {
-          console.warn('Unknown message type:', data.type);
-        }
+        // Queue message for processing
+        this.messageQueue.push({
+          clientId,
+          type: data.type,
+          data: data.data,
+          timestamp: Date.now()
+        });
+        
+        // Update activity timestamp
+        ws.lastActivity = Date.now();
       } catch (e) {
-        console.error('Error handling message:', e);
+        console.error('Error parsing message:', e);
       }
     });
     
     // Handle disconnection
-    socket.on('close', () => {
+    ws.on('close', () => {
       this.handleDisconnection(clientId);
     });
+    
+    // Create connection entity
+    const connectionEntity = this.world.createEntity({
+      connection: createComponent('connection', {
+        clientId,
+        socket: ws,
+        lastProcessedInput: 0,
+        connected: true
+      })
+    });
+    
+    // Store connection entity
+    this.connections.set(clientId, connectionEntity);
+    
+    // Create session
+    sessions.createSession(clientId, ws);
+    
+    return connectionEntity;
   }
   
-  /**
-   * Handle client disconnection
-   * @param {string} clientId - ID of disconnected client
-   */
   handleDisconnection(clientId) {
-    console.log(`Client ${clientId} disconnected`);
+    console.log(`Client disconnected: ${clientId}`);
     
+    // Get connection entity
     const connectionEntity = this.connections.get(clientId);
     if (connectionEntity) {
-      // Remove player entity if it exists
-      if (connectionEntity.connection.playerEntityId) {
-        const playerEntity = this.world.getEntity(connectionEntity.connection.playerEntityId);
-        if (playerEntity) {
-          this.world.removeEntity(playerEntity);
-        }
-      }
+      // Mark as disconnected
+      connectionEntity.connection.connected = false;
+      connectionEntity.connection.disconnectedAt = Date.now();
       
-      // Remove connection entity
-      this.world.removeEntity(connectionEntity);
-      this.connections.delete(clientId);
+      // Emit event
+      this.world.events.emit('clientDisconnected', { clientId, connectionEntity });
+    }
+    
+    // Update session
+    sessions.disconnectSession(clientId);
+  }
+  
+  handleEntityCreated(data) {
+    const { entity } = data;
+    
+    // If this is a player entity, let's associate it with the connection
+    if (entity.player && entity.connection) {
+      const clientId = entity.connection.clientId;
+      
+      // Get connection entity
+      const connectionEntity = this.connections.get(clientId);
+      if (connectionEntity) {
+        // Associate player entity with session
+        sessions.associateEntity(clientId, entity.id);
+      }
     }
   }
   
-  /**
-   * Generate unique client ID
-   * @returns {string} Unique client ID
-   */
-  generateClientId() {
-    return 'client_' + Math.random().toString(36).substr(2, 9);
-  }
-  
-  /**
-   * Register message handler
-   * @param {string} type - Message type
-   * @param {Function} handler - Handler function
-   */
-  registerHandler(type, handler) {
-    this.messageHandlers[type] = handler;
-  }
-  
-  /**
-   * Handle join message
-   * @param {Object} connectionEntity - Connection entity
-   * @param {Object} data - Join message data
-   */
-  handleJoin(connectionEntity, data) {
-    console.log(`Client ${connectionEntity.connection.clientId} joining`);
+  handleEntityRemoved(data) {
+    const { entity } = data;
     
-    // We'll implement player creation later
+    // If this was a connection entity, clean up
+    if (entity.connection) {
+      const clientId = entity.connection.clientId;
+      
+      // Remove from connections map
+      this.connections.delete(clientId);
+      
+      // Remove from session
+      sessions.removeSession(clientId);
+    }
   }
   
-  /**
-   * Handle input message
-   * @param {Object} connectionEntity - Connection entity
-   * @param {Object} data - Input message data
-   */
-  handleInput(connectionEntity, data) {
-    // Add input to buffer for processing
-    connectionEntity.connection.inputBuffer.push({
+  processMessages() {
+    // Process each queued message
+    for (const message of this.messageQueue) {
+      this.processMessage(message);
+    }
+    
+    // Clear the queue
+    this.messageQueue = [];
+  }
+  
+  processMessage(message) {
+    const { clientId, type, data } = message;
+    
+    // Get connection entity
+    const connectionEntity = this.connections.get(clientId);
+    if (!connectionEntity) {
+      console.warn(`Received message from unknown client: ${clientId}`);
+      return;
+    }
+    
+    // Get socket
+    const socket = connectionEntity.connection.socket;
+    
+    // Process different message types
+    switch (type) {
+      case 'join':
+        messages.handleJoinMessage(this.wss, socket, data);
+        break;
+        
+      case 'input':
+        this.handleInputMessage(connectionEntity, data);
+        break;
+        
+      case 'chat':
+        messages.handleChatMessage(this.wss, socket, data);
+        break;
+        
+      case 'venture':
+        messages.handleVentureMessage(this.wss, socket, data);
+        break;
+        
+      default:
+        console.warn(`Unknown message type: ${type}`);
+    }
+  }
+  
+  handleInputMessage(connectionEntity, data) {
+    // Find player entity associated with this connection
+    const playerEntity = this.findPlayerEntity(connectionEntity.connection.clientId);
+    
+    if (!playerEntity) {
+      console.warn(`No player entity found for client: ${connectionEntity.connection.clientId}`);
+      return;
+    }
+    
+    // Add input to buffer
+    if (!playerEntity.connection.inputBuffer) {
+      playerEntity.connection.inputBuffer = [];
+    }
+    
+    playerEntity.connection.inputBuffer.push({
       sequence: data.sequence,
       input: data.input,
       timestamp: Date.now()
     });
   }
   
-  /**
-   * Send message to specific client
-   * @param {string} clientId - Target client ID
-   * @param {string} type - Message type
-   * @param {Object} data - Message payload
-   */
-  sendToClient(clientId, type, data) {
-    const connectionEntity = this.connections.get(clientId);
-    if (!connectionEntity) return;
+  findPlayerEntity(clientId) {
+    // Find all entities with player and connection components
+    const playerEntities = this.world.with('player', 'connection');
     
-    const socket = connectionEntity.connection.socket;
-    if (socket.readyState === 1) { // OPEN
-      socket.send(JSON.stringify({ type, data }));
-    }
+    // Find the one with matching clientId
+    return playerEntities.find(entity => entity.connection.clientId === clientId);
   }
   
-  /**
-   * Broadcast message to all connected clients
-   * @param {string} type - Message type
-   * @param {Object} data - Message payload
-   * @param {string} excludeClientId - Client ID to exclude
-   */
-  broadcast(type, data, excludeClientId = null) {
-    for (const [clientId, connectionEntity] of this.connections) {
-      if (excludeClientId && clientId === excludeClientId) continue;
-      
-      this.sendToClient(clientId, type, data);
-    }
-  }
-  
-  /**
-   * Update method called each frame
-   * @param {number} deltaTime - Time in seconds since last update
-   */
-  update(deltaTime) {
-    // Check for timeouts
+  sendEntityUpdates() {
     const now = Date.now();
-    const timeoutThreshold = 30000; // 30 seconds
     
-    for (const [clientId, connectionEntity] of this.connections) {
-      const connection = connectionEntity.connection;
+    // Only send updates at specified interval
+    if (now - this.lastClientUpdate < this.updateInterval) {
+      return;
+    }
+    
+    this.lastClientUpdate = now;
+    
+    // Find all entities with serverPhysics that need syncing
+    const syncEntities = this.world.with('serverPhysics', 'transform').filter(
+      entity => entity.serverPhysics.needsSync
+    );
+    
+    if (syncEntities.length === 0) {
+      return;
+    }
+    
+    // Prepare entity updates
+    const updates = [];
+    
+    for (const entity of syncEntities) {
+      // Create update object
+      const update = {
+        id: entity.id,
+        position: {
+          x: entity.transform.x,
+          y: entity.transform.y
+        },
+        rotation: entity.transform.rotationZ || 0
+      };
       
-      if (now - connection.lastMessageTime > timeoutThreshold) {
+      // Add physics data if available
+      if (entity.physics) {
+        update.physics = {
+          velocity: entity.physics.velocity,
+          grounded: entity.physics.grounded
+        };
+      }
+      
+      // Add player data if available
+      if (entity.player) {
+        update.player = {
+          state: entity.player.state,
+          facing: entity.player.facing,
+          currentFatigue: entity.player.currentFatigue
+        };
+      }
+      
+      // Add last processed input
+      if (entity.connection && entity.connection.lastProcessedInput) {
+        update.lastProcessedInput = entity.connection.lastProcessedInput;
+      }
+      
+      updates.push(update);
+      
+      // Reset sync flag
+      entity.serverPhysics.needsSync = false;
+    }
+    
+    // Send to all connected clients
+    this.broadcast('entityUpdates', {
+      entities: updates,
+      timestamp: now
+    });
+  }
+  
+  heartbeat() {
+    const now = Date.now();
+    
+    // Send pings to check connections
+    for (const [clientId, connectionEntity] of this.connections) {
+      if (!connectionEntity.connection.connected) continue;
+      
+      const socket = connectionEntity.connection.socket;
+      
+      // Check if socket is still alive
+      if (!socket || socket.readyState !== 1) { // 1 = WebSocket.OPEN
+        this.handleDisconnection(clientId);
+        continue;
+      }
+      
+      // Check for timeouts
+      if (now - socket.lastActivity > 30000) { // 30 seconds
         console.log(`Client ${clientId} timed out`);
-        
-        // Close socket and handle disconnection
-        if (connection.socket.readyState === 1) { // OPEN
-          connection.socket.close(1001, "Connection timeout");
-        }
-        
+        socket.terminate();
+        this.handleDisconnection(clientId);
+        continue;
+      }
+      
+      // Send ping
+      try {
+        socket.ping();
+      } catch (e) {
+        console.error(`Error sending ping to ${clientId}:`, e);
         this.handleDisconnection(clientId);
       }
     }
   }
+  
+  sendMessage(clientId, type, data) {
+    const connectionEntity = this.connections.get(clientId);
+    if (!connectionEntity || !connectionEntity.connection.connected) return;
+    
+    const socket = connectionEntity.connection.socket;
+    if (!socket || socket.readyState !== 1) return; // 1 = WebSocket.OPEN
+    
+    const message = JSON.stringify({
+      type,
+      data
+    });
+    
+    try {
+      socket.send(message);
+    } catch (e) {
+      console.error(`Error sending message to ${clientId}:`, e);
+      this.handleDisconnection(clientId);
+    }
+  }
+  
+  broadcast(type, data, excludeClientId = null) {
+    for (const [clientId, connectionEntity] of this.connections) {
+      if (excludeClientId === clientId) continue;
+      if (!connectionEntity.connection.connected) continue;
+      
+      this.sendMessage(clientId, type, data);
+    }
+  }
+  
+  broadcastToVenture(ventureId, type, data) {
+    // Find all players in this venture
+    const playerEntities = this.world.with('player').filter(
+      entity => entity.player.currentVentureId === ventureId
+    );
+    
+    // Send to each player
+    for (const playerEntity of playerEntities) {
+      if (!playerEntity.connection) continue;
+      
+      const clientId = playerEntity.connection.clientId;
+      this.sendMessage(clientId, type, data);
+    }
+  }
+  
+  update(deltaTime) {
+    // Process queued messages
+    this.processMessages();
+    
+    // Send entity updates
+    this.sendEntityUpdates();
+    
+    // Check connections every second
+    if (Math.random() < deltaTime) { // ~once per second with 60 FPS
+      this.heartbeat();
+    }
+    
+    // Clean up timed out sessions
+    if (Math.random() < deltaTime * 0.1) { // ~once per 10 seconds
+      sessions.cleanupSessions();
+    }
+  }
+  
+  destroy() {
+    // Close all connections
+    for (const [clientId, connectionEntity] of this.connections) {
+      if (connectionEntity.connection.socket) {
+        try {
+          connectionEntity.connection.socket.close();
+        } catch (e) {
+          // Ignore errors during cleanup
+        }
+      }
+    }
+    
+    // Clear maps
+    this.connections.clear();
+    this.clientUpdateBuffer.clear();
+    
+    super.destroy();
+  }
 }
 
-export { ConnectionSystem };
+module.exports = ConnectionSystem;

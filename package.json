@@ -18,10 +18,12 @@
     "sqlite3": "^5.1.6",
     "ws": "^8.18.0",
     "three": "^0.174.0",
+    "uuid": "^9.0.0",
     "@dimforge/rapier2d-compat": "^0.15.0"
   },
   "devDependencies": {
     "miniplex": "^2.0.0",
+    "nodemon": "^3.0.1",
     "vite": "^4.5.9"
   },
   "engines": {
